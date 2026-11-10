@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cacing Pintar Pak Ovan - Game Edukasi Informatika SMP</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts Inter & Fredoka -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      font-family: 'Fredoka', sans-serif;
+      overflow: hidden;
+      background-color: #0f172a;
+    }
+    canvas {
+      display: block;
+      background: #020617;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    #joystickZone {
+      position: absolute;
+      bottom: 25px;
+      left: 25px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      touch-action: none;
+      z-index: 30;
+    }
+    #joystickKnob {
+      position: absolute;
+      top: 35px;
+      left: 35px;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle, #38bdf8 0%, #0284c7 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+      pointer-events: none;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.03); }
+    }
+    .animate-glow {
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+  </style>
+
+  <!-- Early Global Setup to prevent ReferenceError -->
+  <script>
+    window.joinGameAsStudent = function() {};
+    window.togglePauseGame = function() {};
+    window.resumeGameFromPause = function() {};
+    window.restartGame = function() {};
+  </script>
+</head>
+<body class="text-white h-screen w-screen relative select-none">
+
+  <!-- ========================================== -->
+  <!-- LOBBY & PLAYER REGISTRATION SCREEN         -->
+  <!-- ========================================== -->
+  <div id="lobbyScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black overflow-y-auto">
+    <div class="max-w-md w-full glass rounded-3xl p-6 md:p-8 shadow-2xl relative border border-slate-800 my-auto text-center">
+      
+      <!-- Header -->
+      <div class="mb-6">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 mb-3 animate-glow">
+          <span class="text-3xl">🐛</span>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
+          CACING PINTAR
+        </h1>
+        <p class="text-xs text-slate-400 font-sans mt-1">
+          Game Edukasi Informatika SMP - <span class="text-sky-400 font-semibold">Pak Ovan</span>
+        </p>
+      </div>
+
+      <!-- Toast Alert -->
+      <div id="toastAlert" class="hidden mb-4 p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold text-center animate-bounce"></div>
+
+      <!-- Student Form -->
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">Nama Lengkap / Nomor Absen</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-400"></i>
+            <input type="text" id="inputStudentName" placeholder="Contoh: 05 - Budi Santoso" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 pl-11 text-white font-sans focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">Pilih Warna Cacing</label>
+          <div class="grid grid-cols-6 gap-2" id="colorPickerContainer">
+            <!-- Dynamic color choices -->
+          </div>
+        </div>
+
+        <button onclick="window.joinGameAsStudent()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-lg rounded-2xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4">
+          <i class="fa-solid fa-play"></i> MULAI PERMAINAN
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- PAUSE MENU OVERLAY                         -->
+  <!-- ========================================== -->
+  <div id="pauseModal" class="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="max-w-xs w-full glass rounded-3xl p-6 text-center border border-sky-500/30 shadow-2xl space-y-4">
+      <div class="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 text-amber-400 flex items-center justify-center text-2xl mx-auto">
+        <i class="fa-solid fa-pause"></i>
+      </div>
+      <h2 class="text-2xl font-bold text-white">GAME DI-PAUSE</h2>
+      <p class="text-xs text-slate-300 font-sans">
+        Permainan dihentikan sementara. Tekan tombol di bawah untuk melanjutkan.
+      </p>
+      
+      <div class="space-y-2 pt-2">
+        <button onclick="window.resumeGameFromPause()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> LANJUTKAN
+        </button>
+        <button onclick="window.restartGame()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-xs">
+          <i class="fa-solid fa-rotate-right"></i> MAIN ULANG
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- GAME CANVAS HUD OVERLAY                    -->
+  <!-- ========================================== -->
+  <div id="gameHUD" class="fixed inset-0 pointer-events-none z-20 flex flex-col justify-between p-4 hidden">
+    <!-- Top Bar -->
+    <div class="flex justify-between items-start">
+      <!-- Player Info & Score -->
+      <div class="glass p-3 rounded-2xl pointer-events-auto flex items-center gap-3">
+        <div id="hudWormPreview" class="w-8 h-8 rounded-full border-2 border-white/50 shadow-inner flex items-center justify-center text-xs">👀</div>
+        <div>
+          <div id="hudPlayerName" class="font-bold text-sm text-slate-100 max-w-[120px] truncate">Pemain</div>
+          <div class="text-xs text-sky-400 font-mono font-bold">Skor: <span id="hudScore">0</span></div>
+        </div>
+      </div>
+
+      <!-- Action Pause & Stats Buttons -->
+      <div class="flex items-center gap-2 pointer-events-auto">
+        <button onclick="window.togglePauseGame()" id="btnPauseHUD" class="glass px-4 py-2.5 rounded-2xl text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-2 border border-amber-500/30 transition-all">
+          <i class="fa-solid fa-pause"></i> <span>PAUSE</span>
+        </button>
+      </div>
+
+      <!-- Mini Leaderboard / Stats -->
+      <div class="glass p-3 rounded-2xl pointer-events-auto hidden md:block w-48 font-sans">
+        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center justify-between">
+          <span>Statistik Saya</span>
+          <i class="fa-solid fa-chart-simple text-sky-400"></i>
+        </div>
+        <div class="text-xs space-y-1">
+          <div class="flex justify-between text-emerald-400 font-semibold">
+            <span>Benar:</span> <span id="statCorrect">0</span>
+          </div>
+          <div class="flex justify-between text-rose-400 font-semibold">
+            <span>Salah:</span> <span id="statWrong">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Virtual Joystick (Mobile) -->
+    <div id="joystickZone" class="pointer-events-auto md:hidden">
+      <div id="joystickKnob"></div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- INFORMATICS QUIZ POPUP MODAL               -->
+  <!-- ========================================== -->
+  <div id="quizModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="max-w-md w-full glass rounded-3xl p-6 border border-sky-500/30 shadow-2xl relative">
+      <div class="flex justify-between items-center mb-4">
+        <span class="px-3 py-1 bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full border border-sky-500/30">
+          <i class="fa-solid fa-brain mr-1"></i> Soal Informatika SMP
+        </span>
+        <span id="quizCategory" class="text-[11px] text-slate-400 font-sans">Hardware & Software</span>
+      </div>
+
+      <!-- Question Text -->
+      <h3 id="quizQuestionText" class="text-base md:text-lg font-bold text-slate-100 mb-6 leading-relaxed">
+        Pertanyaan akan muncul di sini...
+      </h3>
+
+      <!-- Answer Options -->
+      <div id="quizOptionsContainer" class="space-y-2.5 font-sans">
+        <!-- Dynamic Options -->
+      </div>
+
+      <!-- Feedback Banner -->
+      <div id="quizFeedback" class="mt-4 p-3 rounded-xl text-center text-xs font-bold hidden"></div>
+    </div>
+  </div>
+
+  <!-- MAIN GAME CANVAS -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT LOGIC                           -->
+  <!-- ========================================== -->
+  <script type="module">
+    // State Application
+    const state = {
+      studentName: '',
+      color: "#ef4444",
+      score: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      gameRunning: false,
+      isUserPaused: false,
+      isPausedForQuiz: false,
+      questionIndex: 0,
+      shuffledQuestions: [],
+      foods: []
+    };
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastAlert');
+      if (toast) {
+        toast.innerText = msg;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3500);
+      }
+    }
+
+    // Colors Palette
+    const COLORS = [
+      "#ef4444", "#f97316", "#f59e0b", "#10b981", 
+      "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", 
+      "#84cc16", "#14b8a6", "#a855f7", "#f43f5e"
+    ];
+
+    // Initialize UI Color Picker
+    const colorPickerContainer = document.getElementById('colorPickerContainer');
+    if (colorPickerContainer) {
+      colorPickerContainer.innerHTML = '';
+      COLORS.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-9 h-9 rounded-full border-2 transition-transform duration-150 transform hover:scale-110 flex items-center justify-center ${state.color === c ? 'border-white scale-110' : 'border-transparent'}`;
+        btn.style.backgroundColor = c;
+        btn.onclick = () => {
+          state.color = c;
+          document.querySelectorAll('#colorPickerContainer button').forEach(b => b.classList.replace('border-white', 'border-transparent'));
+          btn.classList.replace('border-transparent', 'border-white');
+        };
+        colorPickerContainer.appendChild(btn);
+      });
+    }
+
+    // Expose control functions to Window
+    window.joinGameAsStudent = function() {
+      const nameInput = document.getElementById('inputStudentName');
+      const name = nameInput ? nameInput.value.trim() : '';
+
+      if (!name) {
+        showToast("Mohon masukkan Nama atau Nomor Absen Murid!");
+        return;
+      }
+
+      state.studentName = name;
+      mySnake.name = name;
+      mySnake.color = state.color;
+
+      shuffleQuestions();
+
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('gameHUD').classList.remove('hidden');
+      
+      document.getElementById('hudPlayerName').innerText = state.studentName;
+      document.getElementById('hudWormPreview').style.backgroundColor = state.color;
+
+      state.gameRunning = true;
+      state.isUserPaused = false;
+      state.isPausedForQuiz = false;
+    };
+
+    window.togglePauseGame = function() {
+      if (!state.gameRunning || state.isPausedForQuiz) return;
+      state.isUserPaused = !state.isUserPaused;
+
+      const pauseModal = document.getElementById('pauseModal');
+      if (state.isUserPaused) {
+        pauseModal.classList.remove('hidden');
+      } else {
+        pauseModal.classList.add('hidden');
+      }
+    };
+
+    window.resumeGameFromPause = function() {
+      state.isUserPaused = false;
+      document.getElementById('pauseModal').classList.add('hidden');
+    };
+
+    window.restartGame = function() {
+      state.score = 0;
+      state.correctCount = 0;
+      state.wrongCount = 0;
+      state.isUserPaused = false;
+      state.isPausedForQuiz = false;
+
+      document.getElementById('hudScore').innerText = '0';
+      document.getElementById('statCorrect').innerText = '0';
+      document.getElementById('statWrong').innerText = '0';
+      document.getElementById('pauseModal').classList.add('hidden');
+
+      mySnake.x = WORLD_SIZE / 2;
+      mySnake.y = WORLD_SIZE / 2;
+      mySnake.segments = [];
+      initFoods();
+    };
+
+    // Keyboard Pause Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.key === 'p' || e.key === 'P') {
+        if (state.gameRunning && !state.isPausedForQuiz) {
+          window.togglePauseGame();
+        }
+      }
+    });
+
+    // 50 BANK SOAL INFORMATIKA SMP (PAK OVAN)
+    const QUESTION_BANK = [
+      { q: "Perangkat keras komputer yang berfungsi sebagai otak utama dalam mengolah data adalah...", options: ["RAM", "CPU / Prosesor", "Harddisk", "Power Supply"], answer: 1, cat: "Hardware" },
+      { q: "Perangkat keras yang digunakan untuk memasukkan data perintah ke dalam komputer dinamakan...", options: ["Perangkat Output", "Perangkat Input", "Perangkat Storage", "Perangkat Process"], answer: 1, cat: "Input/Output" },
+      { q: "Berikut ini yang termasuk perangkat input (masukan) adalah...", options: ["Monitor", "Printer", "Keyboard", "Speaker"], answer: 2, cat: "Input/Output" },
+      { q: "Komponen memori acak sementara yang menyimpan data saat komputer menyala adalah...", options: ["RAM", "ROM", "SSD", "Flashdisk"], answer: 0, cat: "Memory" },
+      { q: "Media penyimpanan sekunder berbasis piringan magnetik adalah...", options: ["SSD", "HDD (Hard Disk Drive)", "RAM", "Cache"], answer: 1, cat: "Storage" },
+      { q: "Media penyimpanan berbasis flash memori yang jauh lebih cepat dari HDD biasa adalah...", options: ["DVD-ROM", "SSD (Solid State Drive)", "Disket", "CD-R"], answer: 1, cat: "Storage" },
+      { q: "Papan sirkuit utama tempat menghubungkan seluruh komponen komputer disebut...", options: ["Motherboard", "VGA Card", "Sound Card", "Power Supply"], answer: 0, cat: "Hardware" },
+      { q: "Sistem operasi berikut ini bersifat open-source dan gratis, yaitu...", options: ["Windows 11", "macOS", "Linux", "iOS"], answer: 2, cat: "Sistem Operasi" },
+      { q: "Program atau aplikasi yang menjembatani pengguna dengan perangkat keras komputer adalah...", options: ["Hardware", "Software / Sistem Operasi", "Brainware", "Malware"], answer: 1, cat: "OS & Software" },
+      { q: "Perangkat output yang berfungsi menampilkan grafik gambar dan teks visual adalah...", options: ["Plotter", "Monitor", "Webcam", "Microphone"], answer: 1, cat: "Input/Output" },
+      { q: "Berikut ini yang merupakan contoh perangkat lunak pengolah kata (Word Processor) adalah...", options: ["Microsoft Excel", "Microsoft Word", "Microsoft PowerPoint", "Paint"], answer: 1, cat: "Aplikasi" },
+      { q: "Aplikasi komputer yang digunakan untuk mengolah angka dan tabel diagram adalah...", options: ["Microsoft Excel", "Adobe Photoshop", "Notepad", "CorelDraw"], answer: 0, cat: "Aplikasi" },
+      { q: "Perangkat jaringan yang berfungsi menghubungkan beberapa jaringan komputer berbeda adalah...", options: ["Switch", "Router", "Kabel UTP", "Hub"], answer: 1, cat: "Jaringan" },
+      { q: "Kartu jaringan yang menghubungkan komputer ke dalam jaringan LAN/Internet dinamakan...", options: ["VGA Card", "NIC / Ethernet Card", "Sound Card", "RAM"], answer: 1, cat: "Jaringan" },
+      { q: "Satuan terkecil data dalam sistem komputasi digital adalah...", options: ["Byte", "Bit", "Kilobyte", "Megabyte"], answer: 1, cat: "Teori Komputer" },
+      { q: "1 Byte terdiri dari berapa Bit?", options: ["4 Bit", "8 Bit", "16 Bit", "32 Bit"], answer: 1, cat: "Teori Komputer" },
+      { q: "Komponen komputer yang mensuplai daya listrik ke seluruh komponen hardware adalah...", options: ["Power Supply (PSU)", "Processor", "Heatsink", "Casing"], answer: 0, cat: "Hardware" },
+      { q: "Aplikasi browser internet yang diproduksi oleh Google adalah...", options: ["Mozilla Firefox", "Google Chrome", "Safari", "Microsoft Edge"], answer: 1, cat: "Aplikasi" },
+      { q: "Perangkat keras yang memproses perintah grafis visual ke layar monitor adalah...", options: ["Sound Card", "VGA / GPU Card", "RAM", "Modem"], answer: 1, cat: "Hardware" },
+      { q: "Alat penunjuk (pointing device) yang digunakan untuk menggerakkan kursor di layar adalah...", options: ["Keyboard", "Mouse", "Scanner", "Printer"], answer: 1, cat: "Input/Output" },
+      { q: "Perangkat masukan yang berfungsi mengubah dokumen cetak menjadi file digital adalah...", options: ["Printer", "Scanner", "Plotter", "Projector"], answer: 1, cat: "Input/Output" },
+      { q: "Sistem operasi mobile paling populer berbasis kernel Linux adalah...", options: ["iOS", "Android", "Symbian", "Windows Phone"], answer: 1, cat: "Sistem Operasi" },
+      { q: "Berikut ini yang bukan merupakan perangkat keras penyimpanan (Storage) adalah...", options: ["Flashdisk", "SSD", "Microphone", "Harddisk External"], answer: 2, cat: "Storage" },
+      { q: "Tombol shortcut keyboard untuk menyalin (Copy) teks atau file adalah...", options: ["Ctrl + V", "Ctrl + C", "Ctrl + X", "Ctrl + Z"], answer: 1, cat: "Aplikasi" },
+      { q: "Tombol shortcut keyboard untuk menempelkan (Paste) data adalah...", options: ["Ctrl + P", "Ctrl + V", "Ctrl + C", "Ctrl + A"], answer: 1, cat: "Aplikasi" },
+      { q: "Perangkat keras keluaran yang menghasilkan audio/suara adalah...", options: ["Microphone", "Speaker", "Webcam", "Joystick"], answer: 1, cat: "Input/Output" },
+      { q: "Perangkat jaringan nirkabel yang memancarkan sinyal Wi-Fi adalah...", options: ["Access Point", "Kabel LAN", "Switch", "Server"], answer: 0, cat: "Jaringan" },
+      { q: "Software anti-virus berguna untuk...", options: ["Mempercepat mengetik", "Melindungi komputer dari program berbahaya", "Membuat presentasi", "Edit video"], answer: 1, cat: "Software" },
+      { q: "Bagian dari CPU yang melakukan perhitungan aritmatika dan logika adalah...", options: ["Control Unit (CU)", "ALU (Arithmetic Logic Unit)", "Register", "Cache"], answer: 1, cat: "Hardware" },
+      { q: "Aplikasi komputer untuk membuat slide presentasi adalah...", options: ["MS Word", "MS Excel", "MS PowerPoint", "MS Access"], answer: 2, cat: "Aplikasi" },
+      { q: "Ekstensi file untuk dokumen Microsoft Word standar adalah...", options: [" .docx", " .xlsx", " .pptx", " .jpg"], answer: 0, cat: "Aplikasi" },
+      { q: "Ekstensi file untuk gambar foto standar adalah...", options: [" .mp3", " .mp4", " .jpg / .png", " .exe"], answer: 2, cat: "Format File" },
+      { q: "Pengguna atau manusia yang mengoperasikan sistem komputer disebut...", options: ["Software", "Hardware", "Brainware", "Firmware"], answer: 2, cat: "Konsep Dasar" },
+      { q: "Layanan penyimpanan data berbasis internet dinamakan...", options: ["Cloud Storage", "Local Storage", "RAM", "ROM"], answer: 0, cat: "Storage" },
+      { q: "Perangkat keras pendingin suhu prosesor komputer disebut...", options: ["Heatsink / Fan", "Power Supply", "Casing", "VGA"], answer: 0, cat: "Hardware" },
+      { q: "Kabel jaringan yang umum digunakan untuk koneksi LAN RJ-45 adalah...", options: ["Kabel UTP", "Kabel HDMI", "Kabel Power", "Kabel VGA"], answer: 0, cat: "Jaringan" },
+      { q: "Perangkat keras yang mengubah sinyal digital menjadi analog dan sebaliknya adalah...", options: ["Modem", "Switch", "Hub", "Repeater"], answer: 0, cat: "Jaringan" },
+      { q: "Port pada komputer untuk menghubungkan kabel monitor resolusi tinggi secara digital adalah...", options: ["HDMI", "USB", "Audio Jack", "LAN"], answer: 0, cat: "Hardware" },
+      { q: "Tombol shortcut untuk membatalkan perintah terakhir (Undo) adalah...", options: ["Ctrl + Y", "Ctrl + Z", "Ctrl + S", "Ctrl + F"], answer: 1, cat: "Aplikasi" },
+      { q: "Urutan skema kerja sistem komputer yang benar adalah...", options: ["Output -> Input -> Process", "Input -> Process -> Output", "Process -> Input -> Output", "Output -> Process -> Input"], answer: 1, cat: "Konsep Dasar" },
+      { q: "Perangkat lunak yang berfungsi mengatur seluruh daya dan sumber daya komputer adalah...", options: ["Aplikasi Word", "Sistem Operasi", "Web Browser", "Antivirus"], answer: 1, cat: "Sistem Operasi" },
+      { q: "Perangkat keluaran untuk mencetak dokumen banner ukuran sangat besar adalah...", options: ["Printer Biasa", "Plotter", "Scanner", "Photocopy"], answer: 1, cat: "Input/Output" },
+      { q: "Topologi jaringan komputer yang berbentuk lingkaran tertutup dinamakan...", options: ["Topologi Bintang (Star)", "Topologi Ring", "Topologi Bus", "Topologi Mesh"], answer: 1, cat: "Jaringan" },
+      { q: "Jenis jaringan komputer lokal dalam area satu ruangan/gedung dinamakan...", options: ["LAN (Local Area Network)", "WAN", "MAN", "Internet"], answer: 0, cat: "Jaringan" },
+      { q: "Jaringan komputer berskala global dunia dinamakan...", options: ["LAN", "PAN", "Internet", "Intranet"], answer: 2, cat: "Jaringan" },
+      { q: "Proses menyalakan komputer dari keadaan mati total disebut...", options: ["Cold Booting", "Warm Booting", "Restart", "Sleep"], answer: 0, cat: "Sistem Operasi" },
+      { q: "Perangkat keras yang digunakan untuk memasukkan suara ke komputer adalah...", options: ["Speaker", "Microphone", "Webcam", "Headphone"], answer: 1, cat: "Input/Output" },
+      { q: "Perangkat input berupa papan ketik dinamakan...", options: ["Mouse", "Keyboard", "Joystick", "Touchpad"], answer: 1, cat: "Input/Output" },
+      { q: "Singkatan dari CPU adalah...", options: ["Central Processing Unit", "Central Power Unit", "Control Processing Unit", "Computer Personal Unit"], answer: 0, cat: "Hardware" },
+      { q: "Memori komputer yang bersifat permanen dan hanya bisa dibaca adalah...", options: ["RAM", "ROM", "Harddisk", "Virtual RAM"], answer: 1, cat: "Memory" }
+    ];
+
+    // Audio Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'eat') {
+          osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'correct') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'wrong') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        }
+      } catch(e) {}
+    }
+
+    // CANVAS & SNAKE ENGINE
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const WORLD_SIZE = 2400;
+
+    let mySnake = {
+      name: '',
+      x: WORLD_SIZE / 2,
+      y: WORLD_SIZE / 2,
+      angle: 0,
+      speed: 3.5,
+      radius: 14,
+      color: state.color,
+      segments: []
+    };
+
+    let keys = {};
+    let joystickVector = { x: 0, y: 0 };
+
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // Touch Joystick Setup
+    const joystickZone = document.getElementById('joystickZone');
+    const joystickKnob = document.getElementById('joystickKnob');
+    let joystickActive = false;
+    let joystickCenter = { x: 0, y: 0 };
+
+    if (joystickZone && joystickKnob) {
+      joystickZone.addEventListener('touchstart', e => {
+        joystickActive = true;
+        const rect = joystickZone.getBoundingClientRect();
+        joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        handleTouch(e.touches[0]);
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchmove', e => {
+        if (joystickActive) handleTouch(e.touches[0]);
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchend', () => {
+        joystickActive = false;
+        joystickKnob.style.transform = `translate(0px, 0px)`;
+        joystickVector = { x: 0, y: 0 };
+      });
+    }
+
+    function handleTouch(touch) {
+      const dx = touch.clientX - joystickCenter.x;
+      const dy = touch.clientY - joystickCenter.y;
+      const dist = Math.hypot(dx, dy);
+      const maxRadius = 35;
+      const angle = Math.atan2(dy, dx);
+      const clampedDist = Math.min(dist, maxRadius);
+
+      const knobX = Math.cos(angle) * clampedDist;
+      const knobY = Math.sin(angle) * clampedDist;
+      joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+      joystickVector = { x: Math.cos(angle), y: Math.sin(angle) };
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function initFoods() {
+      state.foods = [];
+      for (let i = 0; i < 160; i++) {
+        state.foods.push({
+          id: i,
+          x: Math.random() * WORLD_SIZE,
+          y: Math.random() * WORLD_SIZE,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          radius: 6 + Math.random() * 3
+        });
+      }
+    }
+    initFoods();
+
+    function shuffleQuestions() {
+      state.shuffledQuestions = [...QUESTION_BANK].sort(() => Math.random() - 0.5);
+      state.questionIndex = 0;
+    }
+
+    // Main Game Loop
+    let lastTime = performance.now();
+    function gameLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+      if (!state.gameRunning || state.isUserPaused || state.isPausedForQuiz) return;
+
+      if (joystickVector.x !== 0 || joystickVector.y !== 0) {
+        mySnake.angle = Math.atan2(joystickVector.y, joystickVector.x);
+      } else if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        mySnake.angle -= 3.5 * dt;
+      } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        mySnake.angle += 3.5 * dt;
+      }
+
+      mySnake.x += Math.cos(mySnake.angle) * mySnake.speed;
+      mySnake.y += Math.sin(mySnake.angle) * mySnake.speed;
+
+      // Wrap Arena Edge smoothly
+      if (mySnake.x < 0) mySnake.x = WORLD_SIZE;
+      if (mySnake.x > WORLD_SIZE) mySnake.x = 0;
+      if (mySnake.y < 0) mySnake.y = WORLD_SIZE;
+      if (mySnake.y > WORLD_SIZE) mySnake.y = 0;
+
+      mySnake.segments.unshift({ x: mySnake.x, y: mySnake.y });
+      const targetLength = Math.floor(15 + state.score / 10);
+      while (mySnake.segments.length > targetLength) {
+        mySnake.segments.pop();
+      }
+
+      // Eating Food Check
+      state.foods.forEach(f => {
+        if (state.isPausedForQuiz) return;
+        const dist = Math.hypot(mySnake.x - f.x, mySnake.y - f.y);
+        if (dist < mySnake.radius + f.radius) {
+          f.x = Math.random() * WORLD_SIZE;
+          f.y = Math.random() * WORLD_SIZE;
+          playSound('eat');
+          state.score += 10;
+          document.getElementById('hudScore').innerText = state.score;
+
+          // Freeze worm movement and launch Quiz popup
+          state.isPausedForQuiz = true;
+          triggerInformaticsQuiz();
+        }
+      });
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const cameraX = canvas.width / 2 - mySnake.x;
+      const cameraY = canvas.height / 2 - mySnake.y;
+
+      ctx.save();
+      ctx.translate(cameraX, cameraY);
+
+      // Arena Grid Background
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+      ctx.lineWidth = 2;
+      const gridSize = 100;
+      for (let x = 0; x < WORLD_SIZE; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, WORLD_SIZE);
+        ctx.stroke();
+      }
+      for (let y = 0; y < WORLD_SIZE; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(WORLD_SIZE, y);
+        ctx.stroke();
+      }
+
+      // Border Lines
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+      // Foods
+      state.foods.forEach(f => {
+        ctx.fillStyle = f.color;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw Player Worm
+      drawWorm(mySnake.x, mySnake.y, mySnake.angle, mySnake.color, mySnake.name, mySnake.segments);
+
+      ctx.restore();
+    }
+
+    function drawWorm(hx, hy, angle, color, name, segments) {
+      if (segments && segments.length > 0) {
+        for (let i = segments.length - 1; i >= 0; i -= 2) {
+          const seg = segments[i];
+          const segRadius = Math.max(6, 14 - (i * 0.15));
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(seg.x, seg.y, segRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.rotate(angle);
+
+      ctx.fillStyle = color;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(6, -6, 4, 0, Math.PI * 2);
+      ctx.arc(6, 6, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(8, -6, 2, 0, Math.PI * 2);
+      ctx.arc(8, 6, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(name || 'Murid', hx, hy - 22);
+      ctx.shadowBlur = 0;
+    }
+
+    function triggerInformaticsQuiz() {
+      if (state.shuffledQuestions.length === 0) shuffleQuestions();
+
+      const qData = state.shuffledQuestions[state.questionIndex];
+      state.questionIndex = (state.questionIndex + 1) % state.shuffledQuestions.length;
+
+      document.getElementById('quizCategory').innerText = qData.cat;
+      document.getElementById('quizQuestionText').innerText = qData.q;
+      
+      const optionsContainer = document.getElementById('quizOptionsContainer');
+      optionsContainer.innerHTML = '';
+      const feedback = document.getElementById('quizFeedback');
+      feedback.classList.add('hidden');
+
+      qData.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = "w-full text-left p-3.5 bg-slate-900/80 hover:bg-sky-600/30 border border-slate-700/80 hover:border-sky-500 rounded-xl transition-all font-semibold text-sm text-slate-200 flex items-center justify-between";
+        btn.innerHTML = `<span>${String.fromCharCode(65 + idx)}. ${opt}</span> <i class="fa-regular fa-circle text-slate-500"></i>`;
+        
+        btn.onclick = () => handleAnswerSelect(idx, qData.answer, btn);
+        optionsContainer.appendChild(btn);
+      });
+
+      document.getElementById('quizModal').classList.remove('hidden');
+    }
+
+    function handleAnswerSelect(selectedIdx, correctIdx, btn) {
+      const optionsButtons = document.querySelectorAll('#quizOptionsContainer button');
+      optionsButtons.forEach(b => b.disabled = true);
+
+      const feedback = document.getElementById('quizFeedback');
+      feedback.classList.remove('hidden');
+
+      if (selectedIdx === correctIdx) {
+        playSound('correct');
+        btn.classList.add('bg-emerald-600/40', 'border-emerald-500', 'text-emerald-200');
+        feedback.className = "mt-4 p-3 rounded-xl text-center text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        feedback.innerText = "✨ JAWABAN BENAR! +100 Poin";
+
+        state.score += 100;
+        state.correctCount += 1;
+      } else {
+        playSound('wrong');
+        btn.classList.add('bg-rose-600/40', 'border-rose-500', 'text-rose-200');
+        feedback.className = "mt-4 p-3 rounded-xl text-center text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        feedback.innerText = `❌ SALAH (-20 Poin). Jawaban Tepat: ${String.fromCharCode(65 + correctIdx)}`;
+
+        state.score = Math.max(0, state.score - 20);
+        state.wrongCount += 1;
+      }
+
+      document.getElementById('hudScore').innerText = state.score;
+      document.getElementById('statCorrect').innerText = state.correctCount;
+      document.getElementById('statWrong').innerText = state.wrongCount;
+
+      setTimeout(() => {
+        document.getElementById('quizModal').classList.add('hidden');
+        // Unfreeze worm movement after quiz closes
+        state.isPausedForQuiz = false;
+      }, 1400);
+    }
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
